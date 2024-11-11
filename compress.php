@@ -4,7 +4,6 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    // Trả về 200 OK cho yêu cầu OPTIONS
     http_response_code(200);
     exit();
 }
@@ -21,18 +20,37 @@ if (!isset($_FILES['file'])) {
     exit();
 }
 
-$uploadDir = __DIR__ . '/uploads/';
-$uploadFile = $uploadDir . basename($_FILES['file']['name']);
+$inputPath = $_FILES['file']['tmp_name'];
+$outputDir = __DIR__ . '/uploads/';
+$outputPath = $outputDir . 'compressed_' . basename($_FILES['file']['name']);
 
-if (!is_dir($uploadDir)) {
-    mkdir($uploadDir, 0777, true);
-}
+$scale = isset($_POST['scale']) ? intval($_POST['scale']) : 1000;
+$imageQuality = isset($_POST['imageQuality']) ? intval($_POST['imageQuality']) : 75;
 
-if (move_uploaded_file($_FILES['file']['tmp_name'], $uploadFile)) {
-    http_response_code(200);
-    echo json_encode(["message" => "File uploaded successfully", "filePath" => $uploadFile]);
-} else {
+try {
+    $imagick = new Imagick();
+    $imagick->readImage($inputPath);
+
+    // Áp dụng scale (chỉnh kích thước)
+    foreach ($imagick as $frame) {
+        $frame->resizeImage($scale, $scale, Imagick::FILTER_LANCZOS, 1);
+    }
+
+    $imagick->setImageFormat('pdf');
+    $imagick->setImageCompression(Imagick::COMPRESSION_JPEG);
+    $imagick->setImageCompressionQuality($imageQuality);
+    $imagick->stripImage();
+    $imagick->writeImages($outputPath, true);
+    $imagick->clear();
+    $imagick->destroy();
+
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . basename($outputPath) . '"');
+    readfile($outputPath);
+    unlink($inputPath);
+    unlink($outputPath);
+} catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(["message" => "Error uploading file"]);
+    echo json_encode(["message" => "Error compressing PDF", "error" => $e->getMessage()]);
 }
 ?>
