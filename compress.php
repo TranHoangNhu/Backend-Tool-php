@@ -30,16 +30,18 @@ $imageQuality = isset($_POST['imageQuality']) ? intval($_POST['imageQuality']) :
 try {
     $imagick = new Imagick();
     $imagick->readImage($inputPath);
-
+    
     // Coalesce tất cả các trang (nếu là PDF nhiều trang)
     $imagick = $imagick->coalesceImages();
 
+    $totalPages = $imagick->getNumberImages();
+    $currentPage = 0;
+
     foreach ($imagick as $frame) {
-        // Lấy kích thước hiện tại
+        // Tính toán kích thước mới giữ nguyên tỷ lệ
         $width = $frame->getImageWidth();
         $height = $frame->getImageHeight();
 
-        // Tính toán kích thước mới giữ nguyên tỷ lệ
         if ($width >= $height) {
             $newWidth = $maxDimension;
             $newHeight = ($height / $width) * $maxDimension;
@@ -48,14 +50,22 @@ try {
             $newWidth = ($width / $height) * $maxDimension;
         }
 
-        // Áp dụng thay đổi kích thước giữ nguyên tỷ lệ
+        // Resize và nén ảnh
         $frame->resizeImage($newWidth, $newHeight, Imagick::FILTER_LANCZOS, 1);
         $frame->setImageCompression(Imagick::COMPRESSION_JPEG);
         $frame->setImageCompressionQuality($imageQuality);
         $frame->stripImage();
+
+        // Tăng số trang đã xử lý
+        $currentPage++;
+
+        // Gửi tiến độ về frontend thông qua tệp tiến độ
+        file_put_contents($outputDir . 'progress.json', json_encode([
+            'completedPages' => $currentPage,
+            'totalPages' => $totalPages
+        ]));
     }
 
-    // Thiết lập định dạng và ghi vào file output
     $imagick->setImageFormat('pdf');
     $imagick->writeImages($outputPath, true);
     $imagick->clear();
@@ -69,6 +79,7 @@ try {
         // Xóa file tạm sau khi đã trả về cho client
         unlink($inputPath);
         unlink($outputPath);
+        unlink($outputDir . 'progress.json');
     } else {
         throw new Exception("Output file could not be created.");
     }
