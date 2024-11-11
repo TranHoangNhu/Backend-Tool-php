@@ -31,24 +31,35 @@ try {
     $imagick = new Imagick();
     $imagick->readImage($inputPath);
 
-    // Áp dụng scale (chỉnh kích thước)
+    // Kiểm tra nếu là PDF nhiều trang
+    $imagick = $imagick->coalesceImages();
+
     foreach ($imagick as $frame) {
+        // Áp dụng scale cho mỗi trang (nếu cần)
         $frame->resizeImage($scale, $scale, Imagick::FILTER_LANCZOS, 1);
+        $frame->setImageCompression(Imagick::COMPRESSION_JPEG);
+        $frame->setImageCompressionQuality($imageQuality);
+        $frame->stripImage();
     }
 
+    // Thiết lập định dạng và ghi vào file output
     $imagick->setImageFormat('pdf');
-    $imagick->setImageCompression(Imagick::COMPRESSION_JPEG);
-    $imagick->setImageCompressionQuality($imageQuality);
-    $imagick->stripImage();
     $imagick->writeImages($outputPath, true);
     $imagick->clear();
     $imagick->destroy();
 
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: attachment; filename="' . basename($outputPath) . '"');
-    readfile($outputPath);
-    unlink($inputPath);
-    unlink($outputPath);
+    if (file_exists($outputPath)) {
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . basename($outputPath) . '"');
+        readfile($outputPath);
+        
+        // Xóa file tạm sau khi đã trả về cho client
+        unlink($inputPath);
+        unlink($outputPath);
+    } else {
+        throw new Exception("Output file could not be created.");
+    }
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(["message" => "Error compressing PDF", "error" => $e->getMessage()]);
