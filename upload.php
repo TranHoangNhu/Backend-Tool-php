@@ -1,10 +1,10 @@
+// upload.php
 <?php
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    // Trả về 200 OK cho yêu cầu OPTIONS
     http_response_code(200);
     exit();
 }
@@ -35,3 +35,4 @@ if (move_uploaded_file($_FILES['file']['tmp_name'], $uploadFile)) {
     http_response_code(500);
     echo json_encode(["message" => "Error uploading file"]);
 }
+?>
