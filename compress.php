@@ -1,4 +1,3 @@
-// compress.php
 <?php
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -22,51 +21,18 @@ if (!isset($_FILES['file'])) {
     exit();
 }
 
-// Đường dẫn cho file input và output
-$inputPath = $_FILES['file']['tmp_name'];
-$outputDir = __DIR__ . '/uploads/';
-$outputPath = $outputDir . 'compressed_' . basename($_FILES['file']['name']);
+$uploadDir = __DIR__ . '/uploads/';
+$uploadFile = $uploadDir . basename($_FILES['file']['name']);
 
-// Kiểm tra thư mục lưu trữ và tạo nếu không tồn tại
-if (!is_dir($outputDir)) {
-    mkdir($outputDir, 0777, true);
+if (!is_dir($uploadDir)) {
+    mkdir($uploadDir, 0777, true);
 }
 
-try {
-    $imagick = new Imagick();
-    $imagick->readImage($inputPath);
-
-    // Kiểm tra nếu file PDF nhiều trang, xử lý từng trang riêng biệt
-    if ($imagick->getNumberImages() > 1) {
-        $imagick = $imagick->coalesceImages();
-        foreach ($imagick as $frame) {
-            $frame->setImageFormat('jpeg');
-            $frame->setImageCompression(Imagick::COMPRESSION_JPEG);
-            $frame->setImageCompressionQuality(75);
-            $frame->stripImage();
-        }
-        $imagick = $imagick->deconstructImages();
-    } else {
-        $imagick->setImageFormat('jpeg');
-        $imagick->setImageCompression(Imagick::COMPRESSION_JPEG);
-        $imagick->setImageCompressionQuality(75);
-        $imagick->stripImage();
-    }
-
-    // Lưu lại file nén dưới dạng PDF
-    $imagick->writeImages($outputPath, true);
-    $imagick->clear();
-    $imagick->destroy();
-
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: attachment; filename="' . basename($outputPath) . '"');
-    readfile($outputPath);
-
-    // Xóa các file tạm sau khi xử lý xong
-    unlink($inputPath);
-    unlink($outputPath);
-} catch (Exception $e) {
+if (move_uploaded_file($_FILES['file']['tmp_name'], $uploadFile)) {
+    http_response_code(200);
+    echo json_encode(["message" => "File uploaded successfully", "filePath" => $uploadFile]);
+} else {
     http_response_code(500);
-    echo json_encode(["message" => "Error compressing PDF", "error" => $e->getMessage()]);
+    echo json_encode(["message" => "Error uploading file"]);
 }
 ?>
