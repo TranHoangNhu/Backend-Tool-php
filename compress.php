@@ -30,18 +30,15 @@ $scale = isset($_POST['scale']) ? intval($_POST['scale']) : 1000; // Giá trị 
 $imageQuality = isset($_POST['imageQuality']) ? intval($_POST['imageQuality']) : 75; // Giá trị mặc định là 75
 
 try {
-    // Đọc file PDF vào blob
+    // Đọc file PDF và gửi lại cho frontend
     $fileContent = file_get_contents($inputPath);
-    $base64File = base64_encode($fileContent);
-
-    // Gửi dữ liệu base64 cùng thông tin scale và chất lượng hình ảnh đến jsPDF qua frontend để nén
-    echo json_encode([
-        "message" => "File ready for compression",
-        "fileData" => $base64File,
-        "fileName" => basename($_FILES['file']['name']),
-        "scale" => $scale,
-        "imageQuality" => $imageQuality
-    ]);
+    if ($fileContent !== false) {
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . basename($_FILES['file']['name']) . '"');
+        echo $fileContent;
+    } else {
+        throw new Exception("Error reading PDF file.");
+    }
 
     // Xóa file tạm sau khi gửi dữ liệu đến frontend
     unlink($inputPath);
